@@ -1,2 +1,2 @@
 eclipse.preferences.version=1
-sfrviewstate={"fFavorites"\:{"fLists"\:{}},"fProperties"\:{"fNodeProperties"\:{}}}
+sfrviewstate={"fFavorites"\:{"fLists"\:{}},"fProperties"\:{"fNodeProperties"\:{"STM32F446/ADC1/DR"\:{"fNodeProperties"\:{"autoupdate"\:"true"}},"STM32F446/ADC2/DR"\:{"fNodeProperties"\:{"autoupdate"\:"true"}},"STM32F446/GPIOC/IDR"\:{"fNodeProperties"\:{"autoupdate"\:"true"}}}}}
