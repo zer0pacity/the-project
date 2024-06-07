@@ -459,9 +459,9 @@ void TIM2_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET){
 			if(__HAL_TIM_GET_IT_SOURCE(&htim2, TIM_IT_UPDATE) != RESET){
 				__HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-				if(humidityRaw == 0) PWMB = htim2.Init.Period;
-				else PWMB = 0;
-				PWMA = 0;
+				if(humidityRaw == 1) PWMA = htim2.Init.Period;
+				else PWMA = 0;
+				PWMB = 0;
 				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, PWMA);
 				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, PWMB);
 			}
