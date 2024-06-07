@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -65,10 +65,12 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint16_t humidityRaw, tempRaw;
+uint16_t buf[3];
 float humidity, temp;
 float PWMA, PWMB;
 int RGBstate = 0;
 int r, g, b;
+int duty = 60;
 /* USER CODE END 0 */
 
 /**
@@ -105,31 +107,36 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_ADC_Start(&hadc1);
+	HAL_ADC_Start(&hadc1);
 
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
-  HAL_TIM_Base_Start_IT(&htim1);
-  HAL_TIM_Base_Start_IT(&htim2);
+	HAL_TIM_Base_Start_IT(&htim1);
+	HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	  humidityRaw = HAL_GPIO_ReadPin(HS1_GPIO_Port, HS1_Pin);
-	  tempRaw = HAL_ADC_GetValue(&hadc1);
-	  temp = (float)tempRaw * 500 / 4096 - 13;
+	while (1) {
+		HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+		humidityRaw = HAL_GPIO_ReadPin(HS1_GPIO_Port, HS1_Pin);
+		tempRaw = HAL_ADC_GetValue(&hadc1);
+
+		for (int i = 1; i < 3; i++) {
+			buf[i - 1] = buf[i];
+		}
+		buf[2] = tempRaw;
+
+		temp = (float) (buf[0] + buf[1] + buf[2]) / 3 * 500 / 4096 - 13;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -247,7 +254,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 1599;
+  htim1.Init.Prescaler = 132;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 100;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -453,66 +460,70 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void TIM2_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM2_IRQn 0 */
-	if(__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET){
-			if(__HAL_TIM_GET_IT_SOURCE(&htim2, TIM_IT_UPDATE) != RESET){
-				__HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-				if(humidityRaw == 1) PWMA = htim2.Init.Period;
-				else PWMA = 0;
-				PWMB = 0;
-				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, PWMA);
-				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, PWMB);
-			}
-		}
-  /* USER CODE END TIM2_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim2);
-  /* USER CODE BEGIN TIM2_IRQn 1 */
-
-  /* USER CODE END TIM2_IRQn 1 */
-}
 
 /**
-  * @brief This function handles TIM1 trigger and commutation interrupts and TIM11 global interrupt.
-  */
+ * @brief This function handles TIM1 trigger and commutation interrupts and TIM11 global interrupt.
+ */
 
-void TIM1_UP_TIM10_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 0 */
-	if(temp < 23.){
+void TIM1_UP_TIM10_IRQHandler(void) {
+	__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+	/* USER CODE BEGIN TIM1_UP_TIM10_IRQn 0 */
+	if (temp < 23.) {
 		r = 0;
 		g = 0;
-		b = 100;
-	} else if(temp < 25.) {
+		b = duty;
+	} else if (temp < 25.) {
 		r = 0;
-		g = 100;
+		g = duty;
 		b = 0;
 	} else if (temp < 27.) {
-		r = 100;
-		g = 100;
+		r = duty;
+		g = duty;
 		b = 0;
 	} else {
-		r = 100;
+		r = duty;
 		g = 0;
 		b = 0;
 	}
 
-	float rRaw, gRaw, bRaw;
-	rRaw = (r / 100) * htim1.Init.Period;
-	gRaw = (g / 100) * htim1.Init.Period;
-	bRaw = (b / 100) * htim1.Init.Period;
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, r);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, g);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, b);
 
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, rRaw);
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, gRaw);
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, bRaw);
-
-  /* USER CODE END TIM1_UP_TIM10_IRQn 0 */
+	/* USER CODE END TIM1_UP_TIM10_IRQn 0 */
 	HAL_TIM_IRQHandler(&htim1);
 	/* USER CODE BEGIN TIM1_UP_TIM10_IRQn 1 */
 
 	/* USER CODE END TIM1_UP_TIM10_IRQn 1 */
 }
+
+/**
+ * @brief This function handles TIM2 global interrupt.
+ */
+void TIM2_IRQHandler(void) {
+	/* USER CODE BEGIN TIM2_IRQn 0 */
+	if (__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET) {
+		if (__HAL_TIM_GET_IT_SOURCE(&htim2, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
+
+			if(humidityRaw == 1){
+				PWMA = htim2.Init.Period;
+			} else {
+				PWMA = 0;
+			}
+			PWMB = 0;
+
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, PWMB);
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, PWMA);
+		}
+	}
+	/* USER CODE END TIM2_IRQn 0 */
+	HAL_TIM_IRQHandler(&htim2);
+	/* USER CODE BEGIN TIM2_IRQn 1 */
+
+	/* USER CODE END TIM2_IRQn 1 */
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -522,11 +533,10 @@ void TIM1_UP_TIM10_IRQHandler(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1) {
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
