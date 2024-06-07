@@ -67,6 +67,8 @@ static void MX_TIM2_Init(void);
 uint16_t humidityRaw, tempRaw;
 float humidity, temp;
 float PWMA, PWMB;
+int RGBstate = 0;
+int r, g, b;
 /* USER CODE END 0 */
 
 /**
@@ -104,8 +106,15 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_ADC_Start(&hadc1);
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+
+  HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
@@ -116,6 +125,7 @@ int main(void)
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  humidityRaw = HAL_GPIO_ReadPin(HS1_GPIO_Port, HS1_Pin);
 	  tempRaw = HAL_ADC_GetValue(&hadc1);
+	  temp = (float)tempRaw * 500 / 4096 - 13;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -449,13 +459,9 @@ void TIM2_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET){
 			if(__HAL_TIM_GET_IT_SOURCE(&htim2, TIM_IT_UPDATE) != RESET){
 				__HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-				if(humidityRaw == 0){
-					PWMA = 50;
-					PWMB = 50;
-				} else{
-					PWMA = 0;
-					PWMB = 0;
-				}
+				if(humidityRaw == 0) PWMB = htim2.Init.Period;
+				else PWMB = 0;
+				PWMA = 0;
 				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, PWMA);
 				__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, PWMB);
 			}
@@ -465,6 +471,47 @@ void TIM2_IRQHandler(void)
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
   /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 trigger and commutation interrupts and TIM11 global interrupt.
+  */
+
+void TIM1_UP_TIM10_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 0 */
+	if(temp < 23.){
+		r = 0;
+		g = 0;
+		b = 100;
+	} else if(temp < 25.) {
+		r = 0;
+		g = 100;
+		b = 0;
+	} else if (temp < 27.) {
+		r = 100;
+		g = 100;
+		b = 0;
+	} else {
+		r = 100;
+		g = 0;
+		b = 0;
+	}
+
+	float rRaw, gRaw, bRaw;
+	rRaw = (r / 100) * htim1.Init.Period;
+	gRaw = (g / 100) * htim1.Init.Period;
+	bRaw = (b / 100) * htim1.Init.Period;
+
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, rRaw);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, gRaw);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, bRaw);
+
+  /* USER CODE END TIM1_UP_TIM10_IRQn 0 */
+	HAL_TIM_IRQHandler(&htim1);
+	/* USER CODE BEGIN TIM1_UP_TIM10_IRQn 1 */
+
+	/* USER CODE END TIM1_UP_TIM10_IRQn 1 */
 }
 /* USER CODE END 4 */
 
